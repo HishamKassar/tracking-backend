@@ -1,0 +1,113 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - app-network
+
+  api-gateway:
+    build:
+      context: .
+      target: api-gateway
+    container_name: api-gateway
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - ALLOWED_ORIGIN=http://localhost:5173
+      - AUTH_SERVICE_URL=http://auth-service:6000
+      - USER_SERVICE_URL=http://user-service:6001
+      - TRACKING_SERVICE_URL=http://tracking-service:6002
+      - VEHICLE_SERVICE_URL=http://vehicle-service:6003
+    depends_on:
+      - auth-service
+      - tracking-service
+      - user-service
+      - vehicle-service
+    networks:
+      - app-network
+
+  auth-service:
+    build:
+      context: .
+      target: auth-service
+    container_name: auth-service
+    restart: always
+    depends_on:
+      - mongodb
+    ports:
+      - "6000:6000"
+    environment:
+      - NODE_ENV=production
+      - PORT=6000
+      - MONGO_URI=mongodb://mongodb:27017/user-service
+    networks:
+      - app-network
+
+  tracking-service:
+    build:
+      context: .
+      target: tracking-service
+    container_name: tracking-service
+    restart: always
+    depends_on:
+      - mongodb
+    ports:
+      - "6002:6002"
+    environment:
+      - NODE_ENV=production
+      - PORT=6002
+      - MONGO_URI=mongodb://mongodb:27017/vehicle-tracking-service
+    networks:
+      - app-network
+
+  user-service:
+    build:
+      context: .
+      target: user-service
+    container_name: user-service
+    restart: always
+    depends_on:
+      - mongodb
+    ports:
+      - "6001:6001"
+    environment:
+      - NODE_ENV=production
+      - PORT=6001
+      - MONGO_URI=mongodb://mongodb:27017/user-service
+    networks:
+      - app-network
+
+  vehicle-service:
+    build:
+      context: .
+      target: vehicle-service
+    container_name: vehicle-service
+    restart: always
+    depends_on:
+      - mongodb
+    ports:
+      - "6003:6003"
+    environment:
+      - NODE_ENV=production
+      - PORT=6003
+      - MONGO_URI=mongodb://mongodb:27017/vehicle-service
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    external: true
+
+volumes:
+  mongodb_data:
+    driver: local
